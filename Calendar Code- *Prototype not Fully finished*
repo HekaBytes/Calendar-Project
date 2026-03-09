@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Garden Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Layout */
+      --header-h: 6.75vh;
+      --bar-h:    14.5vh;
+      --col-h:    calc(100vh - var(--header-h) - var(--bar-h));
+
+      /* Z-index scale */
+      --z-canvas:  0;
+      --z-silk:    1;
+      --z-sun-arc: 2;
+      --z-ui:      5;
+
+      /* Palette — Thai Constellation */
+      --color-jade:       #7bc49a;
+      --color-jade-light: #a8dbb8;
+      --color-sage:       #c8ddc0;
+      --color-fern:       #e2f0e0;
+      --color-ivory:      #f8f4ec;
+      --color-gold:       #c8a84a;
+      --color-gold-light: #e8c870;
+      --color-teal:       #68b8cc;
+      --color-teal-light: #98d8e8;
+      --color-alert:      #d05848;
+      --color-moon:       #e8f0ff;
+
+      /* Semantic aliases */
+      --text-primary:   var(--color-ivory);
+      --text-secondary: var(--color-fern);
+      --text-dim:       rgba(200, 225, 200, 0.50);
+      --text-dimmer:    rgba(200, 225, 200, 0.25);
+      --text-moon:      var(--color-moon);
+      --text-moon-dim:  rgba(220, 230, 255, 0.55);
+
+      --surface-card:       rgba(18, 28, 20, 0.46);
+      --surface-card-today: rgba(28, 50, 34, 0.72);
+      --surface-bar-right:  rgba(3, 6, 10, 0.55);
+
+      --border-default:  rgba(155, 205, 165, 0.18);
+      --border-emphasis: rgba(155, 205, 165, 0.55);
+
+      /* Task chip accent colors */
+      --chip-water: rgba(88,  180, 216, 0.40);
+      --chip-feed:  rgba(200, 168,  74, 0.40);
+      --chip-prune: rgba(120, 200, 128, 0.40);
+      --chip-alert: rgba(224,  88,  72, 0.52);
+
+      /* Radii */
+      --radius-card: 1.2vh;
+      --radius-chip: 0.8vh;
+      --radius-btn:  50%;
+    }
+
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0a1210;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    /* Silk sheen — single static diagonal light catch */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-silk);
+      pointer-events: none;
+      background: linear-gradient(
+        118deg,
+        transparent 0%,
+        transparent 28%,
+        rgba(210, 235, 215, 0.05) 44%,
+        rgba(215, 240, 220, 0.08) 50%,
+        rgba(210, 235, 215, 0.05) 56%,
+        transparent 72%,
+        transparent 100%
+      );
+    }
+
+    #sky-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: calc(100vh - var(--bar-h));
+      z-index: var(--z-canvas);
+      pointer-events: none;
+    }
+
+    #silk-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: var(--z-silk);
+      pointer-events: none;
+      opacity: 0.75;
+      mix-blend-mode: soft-light;
+    }
+
+    #sun-arc-svg {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: calc(100vh - var(--bar-h));
+      z-index: var(--z-sun-arc);
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      z-index: var(--z-ui);
+    }
+
+    .header {
+      height: var(--header-h);
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 80px 1fr 80px;
+      align-items: center;
+      padding: 0 1.4vw;
+    }
+
+    .header__nav-btn {
+      width: 5.5vh;
+      height: 5.5vh;
+      min-width: 36px;
+      min-height: 36px;
+      border-radius: var(--radius-btn);
+      border: 1px solid var(--border-default);
+      background: rgba(18, 28, 20, 0.65);
+      color: var(--color-sage);
+      font-size: clamp(0.85rem, 1.1vw, 1.1rem);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      transition: background 0.18s, color 0.18s, transform 0.18s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .header__nav-btn:active {
+      background: var(--surface-card-today);
+      color: var(--color-jade-light);
+      transform: scale(0.93);
+    }
+
+    .header__prev { justify-self: start; }
+    .header__next { justify-self: end; }
+
+    .header__title {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header__month {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 4.8vh, 3.2rem);
+      font-weight: 300;
+      color: var(--text-primary);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .header__daterange {
+      font-size: clamp(0.48rem, 0.75vh, 0.62rem);
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 0.3vh;
+    }
+
+    .columns {
+      height: var(--col-h);
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.45vw;
+      padding: 0 1.4vw 0.8vh;
+    }
+
+    .day-col {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface-card);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      min-width: 0;
+      min-height: 0;
+      animation: fade-up 0.4s ease both;
+    }
+
+    .day-col--today {
+      background: var(--surface-card-today);
+      border-color: var(--border-emphasis);
+      box-shadow:
+        0 0 0 1px rgba(140, 200, 120, 0.2) inset,
+        0 2px 2.5vh rgba(82, 179, 106, 0.15);
+    }
+
+    .day-col--past    { opacity: 0.48; }
+    .day-col:active   { border-color: var(--border-emphasis); }
+
+    .day-col:nth-child(1) { animation-delay: 0.03s; }
+    .day-col:nth-child(2) { animation-delay: 0.08s; }
+    .day-col:nth-child(3) { animation-delay: 0.13s; }
+    .day-col:nth-child(4) { animation-delay: 0.18s; }
+    .day-col:nth-child(5) { animation-delay: 0.23s; }
+
+    /* Column header */
+    .col-head {
+      flex-shrink: 0;
+      padding: 1vh 0.8vw 0.7vh;
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    .col-head__dow {
+      font-size: clamp(0.42rem, 0.5vw, 0.54rem);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .day-col--today .col-head__dow { color: var(--color-jade-light); }
+
+    .col-head__date {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.4rem, 2.6vh, 2.2rem);
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1;
+      margin-top: 0.2vh;
+    }
+
+    .day-col--today .col-head__date { color: var(--color-jade-light); }
+
+    .col-head__moon {
+      height: 1.8vh;
+      min-height: 14px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 0.3vh;
+    }
+
+    .col-head__moon-icon { font-size: clamp(0.6rem, 1vh, 0.85rem); }
+
+    .col-head__moon-label {
+      font-size: clamp(0.38rem, 0.55vh, 0.46rem);
+      color: var(--text-moon);
+      opacity: 0.72;
+      letter-spacing: 0.06em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    /* Column body */
+    .col-body {
+      flex: 1;
+      min-height: 0;
+      padding: 0.6vh 0.55vw 0.5vh;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5vh;
+      overflow: hidden;
+    }
+
+    .col-body--clear {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(0.4rem, 0.55vw, 0.5rem);
+      color: var(--text-dimmer);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Task chips */
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 0.4vw;
+      padding: 0.55vh 0.5vw;
+      border-radius: var(--radius-chip);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      min-height: 3.8vh;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .chip--water { border-color: var(--chip-water); }
+    .chip--feed  { border-color: var(--chip-feed); }
+    .chip--prune { border-color: var(--chip-prune); }
+    .chip--alert { border-color: var(--chip-alert); }
+    .chip:active { background: rgba(255, 255, 255, 0.07); }
+
+    .chip__icon {
+      font-size: clamp(0.75rem, 1.4vh, 1rem);
+      width: 1.5vw;
+      min-width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .chip__info  { flex: 1; min-width: 0; }
+
+    .chip__name {
+      font-size: clamp(0.44rem, 0.65vw, 0.58rem);
+      color: var(--text-secondary);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chip__task {
+      font-size: clamp(0.38rem, 0.5vw, 0.49rem);
+      color: var(--text-dim);
+      margin-top: 0.15vh;
+      white-space: nowrap;
+    }
+
+    .chip__pip {
+      width: 0.4vw;
+      height: 0.4vw;
+      min-width: 5px;
+      min-height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .chip__pip--water { background: var(--color-teal); }
+    .chip__pip--feed  { background: var(--color-gold); }
+    .chip__pip--prune { background: var(--color-jade); }
+    .chip__pip--alert {
+      background: var(--color-alert);
+      box-shadow: 0 0 5px rgba(224, 88, 72, 0.7);
+    }
+
+    /* Column footer */
+    .col-foot {
+      flex-shrink: 0;
+      padding: 0.5vh 0.7vw 0.75vh;
+      border-top: 1px solid var(--border-default);
+    }
+
+    .soil-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4vw;
+    }
+
+    .soil-row__label {
+      font-size: clamp(0.38rem, 0.5vw, 0.46rem);
+      color: var(--text-dimmer);
+      flex-shrink: 0;
+    }
+
+    .soil-row__track {
+      flex: 1;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .soil-row__fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--color-teal), var(--color-teal-light));
+      transition: width 0.4s;
+    }
+
+    .soil-row__fill--low { background: linear-gradient(90deg, var(--color-alert), #f08070); }
+    .soil-row__fill--med { background: linear-gradient(90deg, var(--color-gold), var(--color-gold-light)); }
+
+
+    .bottom-bar {
+      height: var(--bar-h);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      border-top: 1px solid rgba(155, 205, 165, 0.15);
+      animation: fade-up 0.4s 0.3s ease both;
+    }
+
+    #bot-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bottom-bar__divider {
+      position: absolute;
+      top: 0;
+      right: 50%;
+      width: 1px;
+      height: 100%;
+      background: rgba(155, 205, 165, 0.10);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Left half — weather + temp */
+    .bar-weather {
+      position: absolute;
+      inset: 0 50% 0 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .bar-weather__temp {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.8rem, 6.5vh, 5rem);
+      font-weight: 300;
+      color: var(--color-gold);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(200, 168, 74, 0.2);
+    }
+
+    .bar-weather__condition {
+      font-size: clamp(0.5rem, 0.8vh, 0.65rem);
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      margin-top: 0.4vh;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .bar-weather__moon-phase {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(0.6rem, 1.1vh, 0.82rem);
+      font-style: italic;
+      font-weight: 300;
+      color: var(--text-moon);
+      letter-spacing: 0.04em;
+      margin-top: 0.5vh;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Right half — clock */
+    .bar-clock {
+      position: absolute;
+      inset: 0 0 0 50%;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .bar-clock__time {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3rem, 7vh, 5.5rem);
+      font-weight: 300;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      text-shadow: 0 2px 22px rgba(0, 0, 0, 0.9);
+    }
+
+    .bar-clock__day {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(0.7rem, 1.2vh, 0.95rem);
+      font-weight: 300;
+      font-style: italic;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      margin-top: 0.35vh;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+    }
+
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Canvas layers (behind everything) -->
+  <canvas id="sky-canvas"></canvas>
+  <canvas id="silk-canvas"></canvas>
+
+  <!-- Sun arc SVG overlay -->
+  <svg id="sun-arc-svg" viewBox="0 0 1000 100" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <filter id="sun-glow" x="-120%" y="-120%" width="340%" height="340%">
+        <feGaussianBlur stdDeviation="10" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="sun-haze" x="-300%" y="-300%" width="700%" height="700%">
+        <feGaussianBlur stdDeviation="25"/>
+      </filter>
+      <radialGradient id="horizon-bloom-grad" cx="50%" cy="100%" r="55%">
+        <stop offset="0%"   id="horizon-bloom-inner" stop-color="#f5a04a" stop-opacity="0.36"/>
+        <stop offset="100%"                           stop-color="#f5a04a" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <ellipse id="horizon-bloom" cx="500" cy="108" rx="480" ry="120" fill="url(#horizon-bloom-grad)" opacity="0"/>
+    <path d="M 20 97 Q 500 -12 980 97" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4 7"/>
+    <path id="sun-trail" d="" fill="none" stroke="rgba(245,195,100,0.5)" stroke-width="2" stroke-linecap="round"/>
+    <circle id="sun-haze-el" cx="0" cy="0" r="32" fill="#f5c870" filter="url(#sun-haze)" opacity="0"/>
+    <circle id="sun-disc"    cx="0" cy="0" r="10" fill="#fff8e0" filter="url(#sun-glow)"  opacity="0"/>
+    <circle id="sun-core"    cx="0" cy="0" r="4.5" fill="#ffffff"                          opacity="0"/>
+  </svg>
+
+  <!-- App shell -->
+  <div class="app">
+
+    <header class="header">
+      <button class="header__nav-btn header__prev" id="btn-prev" aria-label="Previous period">‹</button>
+      <div class="header__title">
+        <h1 class="header__month"      id="header-month">March</h1>
+        <p  class="header__daterange"  id="header-dates">–</p>
+      </div>
+      <button class="header__nav-btn header__next" id="btn-next" aria-label="Next period">›</button>
+    </header>
+
+    <main class="columns" id="columns" role="list"></main>
+
+    <section class="bottom-bar" aria-label="Weather and time">
+      <canvas id="bot-canvas"></canvas>
+      <div class="bottom-bar__divider" aria-hidden="true"></div>
+
+      <div class="bar-weather">
+        <div class="bar-weather__temp">62°</div>
+        <div class="bar-weather__condition">Partly Cloudy · Feels 59°F</div>
+        <div class="bar-weather__moon-phase" id="moon-phase-name">–</div>
+      </div>
+
+      <div class="bar-clock">
+        <div class="bar-clock__time" id="clock-time">–</div>
+        <div class="bar-clock__day"  id="clock-day">–</div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    'use strict';
+
+ 
+    const DAYS_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const MONTHS     = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // Sun timing (minutes since midnight)
+    const SUN_RISE  = 6 * 60 + 42;   // 6:42 AM
+    const SUN_SET   = 18 * 60 + 20;  // 6:20 PM
+
+    // Moon timing
+    const MOON_RISE     = 21 * 60 + 18;      // 9:18 PM
+    const MOON_SET_NEXT = 8  * 60 + 4 + 1440; // 8:04 AM next day (in minutes)
+    const MOON_DUR      = MOON_SET_NEXT - MOON_RISE;
+
+    // Sun arc control points (SVG viewBox 0 0 1000 100)
+    const SUN_ARC = { x0: 20, y0: 97, cx: 500, cy: -12, x1: 980, y1: 97 };
+
+    const WEATHER = 'partly-cloudy'; // 'clear' | 'partly-cloudy' | 'cloudy' | 'overcast' | 'rain'
+
+    const PLANTS = [
+      { icon: '🌿', name: 'Monstera',          moisture: 14 },
+      { icon: '🌵', name: 'Cactus',            moisture: 78 },
+      { icon: '🌺', name: 'Bird of Paradise',  moisture: 44 },
+      { icon: '🍃', name: 'Pothos',            moisture: 31 },
+      { icon: '🌱', name: 'Basil',             moisture: 62 },
+      { icon: '🌹', name: 'Rose Bush',         moisture: 55 },
+      { icon: '🪴', name: 'Fiddle Leaf',       moisture: 48 },
+    ];
+
+    const TASK_LABELS = {
+      water: '💧 water',
+      feed:  '🌿 feed',
+      prune: '✂️ prune',
+      alert: '⚠️ check',
+    };
+
+    /** Returns pseudo-random tasks for 5 days starting at weekStart */
+    function getWeekTasks(weekStart) {
+      const tasks = Array.from({ length: 5 }, () => []);
+      const base  = new Date(weekStart);
+
+      for (let d = 0; d < 5; d++) {
+        const n = base.getDate();
+        if ((n + d)     % 3  === 0) tasks[d].push({ plant: 0, type: 'water' });
+        if ((n + d + 1) % 4  === 0) tasks[d].push({ plant: 3, type: 'water' });
+        if ((n + d + 2) % 5  === 0) tasks[d].push({ plant: 4, type: 'feed'  });
+        if ((n + d)     % 7  === 0) tasks[d].push({ plant: 2, type: 'prune' });
+        if ((n + d + 3) % 11 === 0) tasks[d].push({ plant: 6, type: 'alert' });
+        base.setDate(base.getDate() + 1);
+      }
+
+      return tasks;
+    }
+
+
+    const MOON_PHASES = [
+      { icon: '🌑', name: 'New Moon'        },
+      { icon: '🌒', name: 'Waxing Crescent' },
+      { icon: '🌓', name: 'First Quarter'   },
+      { icon: '🌔', name: 'Waxing Gibbous'  },
+      { icon: '🌕', name: 'Full Moon'       },
+      { icon: '🌖', name: 'Waning Gibbous'  },
+      { icon: '🌗', name: 'Third Quarter'   },
+      { icon: '🌘', name: 'Waning Crescent' },
+    ];
+
+    function getMoonPhase(year, month, day) {
+      const REF_DATE = new Date(2026, 1, 25); // known new moon reference
+      const SYNODIC  = 29.53;
+      const elapsed  = new Date(year, month - 1, day) - REF_DATE;
+      const age      = ((elapsed / 86400000) % SYNODIC + SYNODIC) % SYNODIC;
+
+      let index, illumination, notable = false;
+
+      if      (age < 1.85)  { index = 0; illumination = 0;   notable = true; }
+      else if (age < 7.38)  { index = 1; illumination = Math.round(age / 7.38 * 49); }
+      else if (age < 9.22)  { index = 2; illumination = 50;  notable = true; }
+      else if (age < 14.77) { index = 3; illumination = Math.round(50 + (age - 9.22) / 5.55 * 49); }
+      else if (age < 16.61) { index = 4; illumination = 100; notable = true; }
+      else if (age < 22.15) { index = 5; illumination = Math.round(100 - (age - 16.61) / 5.54 * 49); }
+      else if (age < 23.99) { index = 6; illumination = 50;  notable = true; }
+      else                  { index = 7; illumination = Math.round((SYNODIC - age) / 5.54 * 49); }
+
+      return { ...MOON_PHASES[index], index, illumination, notable };
+    }
+
+    const today       = new Date();
+    const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+    let   windowOffset = 0; // days offset from today
+
+    function getWindowStart() {
+      const d = new Date(today);
+      d.setDate(today.getDate() + windowOffset);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function renderWeek() {
+      const start = getWindowStart();
+      const end   = new Date(start); end.setDate(start.getDate() + 4);
+
+      const startMonth = MONTHS[start.getMonth()];
+      const endMonth   = MONTHS[end.getMonth()];
+      document.getElementById('header-month').textContent =
+        startMonth === endMonth ? startMonth : `${startMonth} · ${endMonth}`;
+      document.getElementById('header-dates').textContent =
+        `${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
+
+      const tasks   = getWeekTasks(start);
+      const columns = document.getElementById('columns');
+      columns.innerHTML = '';
+
+      for (let d = 0; d < 5; d++) {
+        const date    = new Date(start); date.setDate(start.getDate() + d);
+        const isToday = date.toDateString() === today.toDateString();
+        const isPast  = date < todayMidnight;
+        const phase   = getMoonPhase(date.getFullYear(), date.getMonth() + 1, date.getDate());
+        const dayTasks = tasks[d];
+
+        const avgMoisture = dayTasks.length
+          ? Math.round(dayTasks.reduce((sum, t) => sum + PLANTS[t.plant].moisture, 0) / dayTasks.length)
+          : 58;
+        const soilClass = avgMoisture < 25 ? 'low' : avgMoisture < 42 ? 'med' : '';
+
+        const bodyContent = dayTasks.length === 0
+          ? `<div class="col-body--clear">all clear ✓</div>`
+          : dayTasks.map(t => `
+              <div class="chip chip--${t.type}" role="listitem">
+                <span class="chip__icon">${PLANTS[t.plant].icon}</span>
+                <div class="chip__info">
+                  <div class="chip__name">${PLANTS[t.plant].name}</div>
+                  <div class="chip__task">${TASK_LABELS[t.type]}</div>
+                </div>
+                <span class="chip__pip chip__pip--${t.type}"></span>
+              </div>`).join('');
+
+        const col = document.createElement('article');
+        col.className = [
+          'day-col',
+          isToday ? 'day-col--today' : '',
+          isPast  ? 'day-col--past'  : '',
+        ].filter(Boolean).join(' ');
+        col.setAttribute('role', 'listitem');
+
+        col.innerHTML = `
+          <div class="col-head">
+            <div class="col-head__dow">${DAYS_SHORT[date.getDay()]}</div>
+            <div class="col-head__date">${date.getDate()}</div>
+            <div class="col-head__moon">
+              <span class="col-head__moon-icon" style="opacity:${phase.notable ? 1 : 0.28}">${phase.icon}</span>
+              ${phase.notable ? `<span class="col-head__moon-label">${phase.name}</span>` : ''}
+            </div>
+          </div>
+          <div class="col-body">${bodyContent}</div>
+          <footer class="col-foot">
+            <div class="soil-row">
+              <span class="soil-row__label">soil</span>
+              <div class="soil-row__track">
+                <div class="soil-row__fill soil-row__fill--${soilClass}" style="width:${avgMoisture}%"></div>
+              </div>
+              <span class="soil-row__label">${avgMoisture}%</span>
+            </div>
+          </footer>`;
+
+        columns.appendChild(col);
+      }
+    }
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      windowOffset -= 1;
+      renderWeek();
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+      windowOffset += 1;
+      renderWeek();
+    });
+
+    renderWeek();
+    function updateClock() {
+      const now  = new Date();
+      const h    = now.getHours() % 12 || 12;
+      const m    = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('clock-time').textContent = `${h}:${m}`;
+      document.getElementById('clock-day').textContent  = DAYS_FULL[now.getDay()];
+    }
+    updateClock();
+    setInterval(updateClock, 15_000);
+
+    function bezierPoint(t, x0, y0, cx, cy, x1, y1) {
+      const u = 1 - t;
+      return {
+        x: u * u * x0 + 2 * u * t * cx + t * t * x1,
+        y: u * u * y0 + 2 * u * t * cy + t * t * y1,
+      };
+    }
+
+    /** Returns the SVG path string for the arc traveled up to progress t */
+    function subBezierPath(t, x0, y0, cx, cy, x1, y1) {
+      if (t <= 0) return '';
+      const mid  = bezierPoint(t / 2, x0, y0, cx, cy, x1, y1);
+      const end  = bezierPoint(t,     x0, y0, cx, cy, x1, y1);
+      const scpx = 2 * mid.x - 0.5 * (x0 + end.x);
+      const scpy = 2 * mid.y - 0.5 * (y0 + end.y);
+      return `M ${x0} ${y0} Q ${scpx.toFixed(2)} ${scpy.toFixed(2)} ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+    }
+    const skyCanvas = document.getElementById('sky-canvas');
+    const skyCtx    = skyCanvas.getContext('2d');
+
+    function resizeSkyCanvas() {
+      skyCanvas.width  = window.innerWidth;
+      skyCanvas.height = window.innerHeight * 0.855;
+    }
+
+    function skyGradientColors(minuteOfDay) {
+      const t  = minuteOfDay / 1440;
+      const sr = SUN_RISE / 1440;
+      const ss = SUN_SET  / 1440;
+
+      if (t < sr - 0.04) return ['#060c08', '#0a1410', '#08100c'];
+      if (t < sr)        return ['#0c1a14', '#1a2830', '#b04030'];
+      if (t < sr + 0.05) return ['#142818', '#906030', '#e89040'];
+      if (t < 0.45)      return ['#1a4c88', '#2878b8', '#4a9ac8'];
+      if (t < ss - 0.05) return ['#163070', '#2060a0', '#3480b8'];
+      if (t < ss)        return ['#182020', '#803020', '#c05030'];
+      if (t < ss + 0.04) return ['#100c10', '#401828', '#802020'];
+      return                    ['#060c08', '#0a1410', '#08100c'];
+    }
+    const STARS = [
+      [110,35],[260,65],[430,28],[580,52],[740,22],[900,65],[1090,35],[1190,85],
+      [55,100],[340,140],[690,105],[1040,125],[190,185],[540,175],[890,170],[1140,190],
+      [75,250],[395,240],[750,230],[1090,250],[290,300],[640,295],[980,285],
+      [160,55],[480,78],[720,40],[960,90],[1150,50],[30,180],[350,210],[680,220],
+      [1000,195],[1210,230],[420,310],[760,320],[1080,305],[200,340],[580,355],
+    ];
+
+    const BRIGHT_STARS = [
+      [200,42],[520,18],[850,38],[1150,22],[310,120],[750,95],[1050,140],[460,270],[900,260],
+    ];
+
+    function getSunProgress() {
+      const now     = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      if (minutes <= SUN_RISE) return 0;
+      if (minutes >= SUN_SET)  return 1;
+      return (minutes - SUN_RISE) / (SUN_SET - SUN_RISE);
+    }
+
+    function drawSky() {
+      const { width: W, height: H } = skyCanvas;
+      const now     = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      const [top, mid, bot] = skyGradientColors(minutes);
+      const grad = skyCtx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, top);
+      grad.addColorStop(0.5, mid);
+      grad.addColorStop(1, bot);
+      skyCtx.fillStyle = grad;
+      skyCtx.fillRect(0, 0, W, H);
+      const sp     = getSunProgress();
+      const nightA = sp < 0.06 ? (0.06 - sp) / 0.06 : sp > 0.94 ? (sp - 0.94) / 0.06 : 0;
+      const starA  = Math.max(0.55, nightA * 0.92);
+
+      STARS.forEach(([x, y]) => {
+        skyCtx.fillStyle = `rgba(255,255,255,${starA})`;
+        skyCtx.beginPath();
+        skyCtx.arc((x / 1280) * W, (y / 600) * H, 1.2, 0, Math.PI * 2);
+        skyCtx.fill();
+      });
+
+      BRIGHT_STARS.forEach(([x, y]) => {
+        skyCtx.fillStyle = `rgba(255,255,255,${Math.max(starA + 0.2, nightA)})`;
+        skyCtx.beginPath();
+        skyCtx.arc((x / 1280) * W, (y / 600) * H, 1.8, 0, Math.PI * 2);
+        skyCtx.fill();
+      });
+    }
+
+    const sunArcEls = {
+      hBloom:  document.getElementById('horizon-bloom'),
+      hbg0:    document.getElementById('horizon-bloom-inner'),
+      trail:   document.getElementById('sun-trail'),
+      haze:    document.getElementById('sun-haze-el'),
+      disc:    document.getElementById('sun-disc'),
+      core:    document.getElementById('sun-core'),
+    };
+
+    function updateSunArc() {
+      const { x0, y0, cx, cy, x1, y1 } = SUN_ARC;
+      const sp  = getSunProgress();
+      const pt  = bezierPoint(sp, x0, y0, cx, cy, x1, y1);
+      const vis = sp > 0 && sp < 1;
+      const op  = vis ? Math.min(1, Math.min(sp, 1 - sp) * 18) : 0;
+
+      [sunArcEls.haze, sunArcEls.disc, sunArcEls.core].forEach(el => {
+        el.setAttribute('cx', pt.x.toFixed(2));
+        el.setAttribute('cy', pt.y.toFixed(2));
+      });
+      sunArcEls.haze.setAttribute('opacity', (op * 0.5).toString());
+      sunArcEls.disc.setAttribute('opacity', op.toString());
+      sunArcEls.core.setAttribute('opacity', op.toString());
+
+      const bloomOp = vis
+        ? (Math.pow(1 - Math.abs(sp - 0.5) * 2, 2) * 0.45 + 0.04).toFixed(3)
+        : '0';
+      sunArcEls.hBloom.setAttribute('opacity', bloomOp);
+      sunArcEls.hbg0.setAttribute('stop-color', (sp < 0.15 || sp > 0.85) ? '#f57040' : '#f5b040');
+      sunArcEls.trail.setAttribute('d', subBezierPath(sp, x0, y0, cx, cy, x1, y1));
+      sunArcEls.trail.setAttribute('opacity', vis ? '1': '0');
+    }
+
+    const silkCanvas = document.getElementById('silk-canvas');
+    const silkCtx    = silkCanvas.getContext('2d');
+
+    function drawSilk() {
+      const W = silkCanvas.width  = window.innerWidth;
+      const H = silkCanvas.height = window.innerHeight;
+
+      silkCtx.clearRect(0, 0, W, H);
+
+      [
+        [W * 0.25, H * 0.30, W * 0.38, H * 0.32, 0.055],
+        [W * 0.72, H * 0.62, W * 0.32, H * 0.28, 0.040],
+      ].forEach(([x, y, rx, ry, a]) => {
+        const grad = silkCtx.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+        grad.addColorStop(0,   `rgba(215,238,220,${a})`);
+        grad.addColorStop(0.5, `rgba(200,228,210,${a * 0.4})`);
+        grad.addColorStop(1,   'rgba(200,228,210,0)');
+        silkCtx.fillStyle = grad;
+        silkCtx.beginPath();
+        silkCtx.ellipse(x, y, rx, ry, Math.PI * 0.12, 0, Math.PI * 2);
+        silkCtx.fill();
+      });
+    }
+    const botCanvas = document.getElementById('bot-canvas');
+    const botCtx    = botCanvas.getContext('2d');
+
+    function resizeBotCanvas() {
+      botCanvas.width  = botCanvas.parentElement.offsetWidth;
+      botCanvas.height = botCanvas.parentElement.offsetHeight;
+    }
+
+    // Star positions for bar [x, y] in a 1280×116 reference space
+    const BAR_STARS = [
+      [60,12],[150,28],[280,10],[420,22],[555,8],[680,18],[810,12],[940,25],
+      [1080,14],[1200,32],[45,48],[210,55],[390,44],[580,40],[750,52],[960,42],[1150,54],
+      [130,72],[360,80],[600,68],[840,76],[1060,70],[1230,84],
+    ];
+
+    const BAR_BRIGHT_STARS = [[240,14],[620,9],[980,18],[410,66],[880,62]];
+
+    function getMoonProgress() {
+      const now     = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      if (minutes >= MOON_RISE)            return (minutes - MOON_RISE) / MOON_DUR;
+      if (minutes <= MOON_SET_NEXT - 1440) return (minutes + 1440 - MOON_RISE) / MOON_DUR;
+      return -1;
+    }
+
+    /** Evaluates the moon arc bezier at progress t */
+    function moonArcPoint(t) {
+      const W = botCanvas.width;
+      const H = botCanvas.height;
+      return bezierPoint(t, 0, H * 0.92, W * 0.5, H * 0.04, W, H * 0.92);
+    }
+
+    function drawMoonArcTrack() {
+      const W = botCanvas.width;
+      const H = botCanvas.height;
+      const y = H * 0.92;
+
+      // Horizon glow
+      const glow = botCtx.createRadialGradient(W * 0.5, H, 0, W * 0.5, H, W * 0.4);
+      glow.addColorStop(0, 'rgba(100,140,255,0.14)');
+      glow.addColorStop(1, 'rgba(100,140,255,0)');
+      botCtx.fillStyle = glow;
+      botCtx.fillRect(0, H * 0.6, W, H * 0.4);
+
+      // Arc track
+      botCtx.beginPath();
+      botCtx.moveTo(0, y);
+      botCtx.quadraticCurveTo(W * 0.5, H * 0.04, W, y);
+      botCtx.strokeStyle = 'rgba(180,210,255,0.1)';
+      botCtx.lineWidth   = 1.5;
+      botCtx.setLineDash([3, 9]);
+      botCtx.stroke();
+      botCtx.setLineDash([]);
+
+      // Horizon line and edge ticks
+      botCtx.strokeStyle = 'rgba(180,210,255,0.07)';
+      botCtx.lineWidth   = 1;
+      botCtx.beginPath(); botCtx.moveTo(0, y); botCtx.lineTo(W, y); botCtx.stroke();
+
+      botCtx.strokeStyle = 'rgba(180,210,255,0.28)';
+      botCtx.lineWidth   = 1.5;
+      botCtx.beginPath(); botCtx.moveTo(2,     y - 5); botCtx.lineTo(2,     y + 2); botCtx.stroke();
+      botCtx.beginPath(); botCtx.moveTo(W - 2, y - 5); botCtx.lineTo(W - 2, y + 2); botCtx.stroke();
+    }
+
+    function drawMoonTrail(progress) {
+      if (progress <= 0) return;
+      const H   = botCanvas.height;
+      const end = moonArcPoint(progress);
+      const mid = moonArcPoint(progress / 2);
+      const scpx = 2 * mid.x - 0.5 * (0 + end.x);
+      const scpy = 2 * mid.y - 0.5 * (H * 0.92 + end.y);
+
+      botCtx.beginPath();
+      botCtx.moveTo(0, H * 0.92);
+      botCtx.quadraticCurveTo(scpx, scpy, end.x, end.y);
+      botCtx.strokeStyle = 'rgba(200,224,255,0.28)';
+      botCtx.lineWidth   = 1.6;
+      botCtx.stroke();
+    }
+
+    /** Draws a phase-accurate moon disc using geometry (no emoji) */
+    function drawMoonDisc(cx, cy, R, phase, opacity) {
+      if (opacity < 0.02) return;
+      const K = 0.5523; // bezier circle constant
+
+      botCtx.save();
+      botCtx.globalAlpha = opacity;
+
+      // Atmospheric glow
+      const glow = botCtx.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 2.6);
+      glow.addColorStop(0, 'rgba(190,215,255,0.28)');
+      glow.addColorStop(1, 'rgba(190,215,255,0)');
+      botCtx.fillStyle = glow;
+      botCtx.beginPath();
+      botCtx.arc(cx, cy, R * 2.6, 0, Math.PI * 2);
+      botCtx.fill();
+
+      // Clip to disc
+      botCtx.save();
+      botCtx.beginPath();
+      botCtx.arc(cx, cy, R, 0, Math.PI * 2);
+      botCtx.clip();
+
+      // Dark base (unlit side)
+      botCtx.fillStyle = '#05090f';
+      botCtx.fillRect(cx - R - 1, cy - R - 1, R * 2 + 2, R * 2 + 2);
+
+      const illumination = (1 - Math.cos(Math.PI * 2 * (phase.index / 8))) / 2;
+      if (illumination > 0.01) {
+        const waxing = phase.index <= 4;
+        const hx     = cx + R * (waxing ? 0.2 : -0.2);
+        const hy     = cy - R * 0.25;
+
+        const sphereGrad = botCtx.createRadialGradient(hx, hy, R * 0.05, cx, cy, R);
+        sphereGrad.addColorStop(0,    '#f0f5ff');
+        sphereGrad.addColorStop(0.3,  '#d0dff5');
+        sphereGrad.addColorStop(0.65, '#8898cc');
+        sphereGrad.addColorStop(1,    '#3a4a90');
+
+        // Terminator curve — positive = gibbous, negative = crescent
+        const tX = R * (2 * illumination - 1) * (waxing ? 1 : -1);
+
+        botCtx.beginPath();
+        botCtx.moveTo(cx, cy - R);
+        waxing
+          ? botCtx.arc(cx, cy, R, -Math.PI / 2, Math.PI / 2, false)
+          : botCtx.arc(cx, cy, R, -Math.PI / 2, Math.PI / 2, true);
+
+        botCtx.bezierCurveTo(cx + tX * K, cy + R,     cx + tX, cy + R * K, cx + tX, cy);
+        botCtx.bezierCurveTo(cx + tX,     cy - R * K, cx + tX * K, cy - R, cx, cy - R);
+        botCtx.fillStyle = sphereGrad;
+        botCtx.fill();
+
+        // Edge vignette
+        const vignette = botCtx.createRadialGradient(cx, cy, 0, cx, cy, R);
+        vignette.addColorStop(0,    'rgba(0,0,0,0)');
+        vignette.addColorStop(0.65, 'rgba(0,0,0,0.015)');
+        vignette.addColorStop(1,    'rgba(0,0,20,0.12)');
+        botCtx.fillStyle = vignette;
+        botCtx.beginPath();
+        botCtx.arc(cx, cy, R, 0, Math.PI * 2);
+        botCtx.fill();
+      }
+
+      botCtx.restore(); // remove clip
+
+      // Limb ring
+      botCtx.beginPath();
+      botCtx.arc(cx, cy, R - 0.5, 0, Math.PI * 2);
+      botCtx.strokeStyle = 'rgba(220,235,255,0.22)';
+      botCtx.lineWidth   = 1;
+      botCtx.stroke();
+
+      botCtx.restore(); // remove globalAlpha
+    }
+
+    function drawLeftSun(now) {
+      const W     = botCanvas.width;
+      const H     = botCanvas.height;
+      const halfW = W * 0.5;
+      const cx    = halfW * 0.5;
+      const cy    = H * 0.5 + Math.sin(now * 0.0008) * H * 0.06;
+      const R     = H * 0.55;
+
+      botCtx.save();
+      botCtx.beginPath();
+      botCtx.rect(0, 0, halfW, H);
+      botCtx.clip();
+
+      const corona = botCtx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.2);
+      corona.addColorStop(0,   'rgba(255,210,100,0.22)');
+      corona.addColorStop(0.4, 'rgba(255,180,60,0.10)');
+      corona.addColorStop(1,   'rgba(255,140,40,0)');
+      botCtx.fillStyle = corona;
+      botCtx.beginPath(); botCtx.arc(cx, cy, R * 2.2, 0, Math.PI * 2); botCtx.fill();
+
+      const halo = botCtx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 1.1);
+      halo.addColorStop(0,   'rgba(255,230,140,0.35)');
+      halo.addColorStop(0.6, 'rgba(255,195,80,0.14)');
+      halo.addColorStop(1,   'rgba(255,160,50,0)');
+      botCtx.fillStyle = halo;
+      botCtx.beginPath(); botCtx.arc(cx, cy, R * 1.1, 0, Math.PI * 2); botCtx.fill();
+
+      const disc = botCtx.createRadialGradient(cx - R * 0.15, cy - R * 0.15, R * 0.05, cx, cy, R);
+      disc.addColorStop(0,    '#fff8e8');
+      disc.addColorStop(0.4,  '#ffe8a0');
+      disc.addColorStop(0.75, '#f5c050');
+      disc.addColorStop(1,    '#e89830');
+      botCtx.fillStyle = disc;
+      botCtx.beginPath(); botCtx.arc(cx, cy, R, 0, Math.PI * 2); botCtx.fill();
+
+      botCtx.restore();
+    }
+
+    function drawCloud(cx, cy, scale, opacity) {
+      botCtx.save();
+      botCtx.globalAlpha = opacity;
+
+      const shadow = botCtx.createRadialGradient(cx, cy + scale * 0.55, 0, cx, cy + scale * 0.55, scale * 1.1);
+      shadow.addColorStop(0, 'rgba(140,160,200,0.18)');
+      shadow.addColorStop(1, 'rgba(140,160,200,0)');
+      botCtx.fillStyle = shadow;
+      botCtx.beginPath();
+      botCtx.ellipse(cx, cy + scale * 0.5, scale, scale * 0.3, 0, 0, Math.PI * 2);
+      botCtx.fill();
+
+      const puffs = [
+        [0,          0,          scale * 0.62],
+        [-scale * 0.55, scale * 0.18, scale * 0.44],
+        [ scale * 0.55, scale * 0.18, scale * 0.44],
+        [-scale * 0.25, scale * 0.28, scale * 0.38],
+        [ scale * 0.28, scale * 0.28, scale * 0.36],
+        [0,          scale * 0.32, scale * 0.40],
+      ];
+
+      puffs.forEach(([dx, dy, r]) => {
+        const g = botCtx.createRadialGradient(cx + dx - r * 0.12, cy + dy - r * 0.18, r * 0.1, cx + dx, cy + dy, r);
+        g.addColorStop(0,   'rgba(255,255,255,0.96)');
+        g.addColorStop(0.5, 'rgba(240,245,255,0.88)');
+        g.addColorStop(1,   'rgba(210,225,250,0.55)');
+        botCtx.fillStyle = g;
+        botCtx.beginPath();
+        botCtx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2);
+        botCtx.fill();
+      });
+
+      botCtx.restore();
+    }
+
+    // Each entry: [xFrac, yFrac, scaleFrac, opacity, driftSpeed, driftAmp]
+    const CLOUD_CONFIGS = {
+      'clear':         [],
+      'partly-cloudy': [[0.72, 0.32, 0.22, 0.82, 0.00018, 0.03], [0.28, 0.55, 0.16, 0.60, -0.00014, 0.025]],
+      'cloudy':        [[0.60, 0.28, 0.26, 0.90, 0.00016, 0.03], [0.22, 0.50, 0.20, 0.80, -0.00012, 0.025], [0.82, 0.55, 0.18, 0.70, 0.00020, 0.02]],
+      'overcast':      [[0.50, 0.22, 0.32, 0.95, 0.00010, 0.015],[0.20, 0.48, 0.28, 0.88, -0.00008, 0.012],[0.78, 0.45, 0.24, 0.85, 0.00014, 0.018],[0.40, 0.62, 0.20, 0.75, -0.00012, 0.01]],
+      'rain':          [[0.50, 0.20, 0.30, 0.92, 0.00008, 0.01], [0.25, 0.42, 0.24, 0.85, -0.00006, 0.01],[0.76, 0.40, 0.22, 0.80, 0.00010, 0.01]],
+    };
+
+    function drawWeatherClouds(now) {
+      const W      = botCanvas.width;
+      const H      = botCanvas.height;
+      const halfW  = W * 0.5;
+      const clouds = CLOUD_CONFIGS[WEATHER] ?? CLOUD_CONFIGS['partly-cloudy'];
+
+      botCtx.save();
+      botCtx.beginPath();
+      botCtx.rect(0, 0, halfW, H);
+      botCtx.clip();
+
+      clouds.forEach(([xf, yf, sf, op, speed, amp]) => {
+        const drift = Math.sin(now * speed) * halfW * amp;
+        drawCloud(halfW * xf + drift, H * yf, H * sf, op);
+      });
+
+      botCtx.restore();
+    }
+
+    function drawBotCanvas() {
+      const W   = botCanvas.width;
+      const H   = botCanvas.height;
+      const now = performance.now();
+
+      // Night sky background
+      const bg = botCtx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0,   '#060c10');
+      bg.addColorStop(0.6, '#08121a');
+      bg.addColorStop(1,   '#0c1820');
+      botCtx.fillStyle = bg;
+      botCtx.fillRect(0, 0, W, H);
+
+      // Stars
+      BAR_STARS.forEach(([x, y]) => {
+        botCtx.fillStyle = 'rgba(200,218,255,0.36)';
+        botCtx.beginPath();
+        botCtx.arc((x / 1280) * W, (y / 116) * H, 0.7, 0, Math.PI * 2);
+        botCtx.fill();
+      });
+
+      BAR_BRIGHT_STARS.forEach(([x, y]) => {
+        botCtx.fillStyle = 'rgba(220,235,255,0.65)';
+        botCtx.beginPath();
+        botCtx.arc((x / 1280) * W, (y / 116) * H, 1.1, 0, Math.PI * 2);
+        botCtx.fill();
+      });
+
+      // Left half — sun and weather
+      drawLeftSun(now);
+      drawWeatherClouds(now);
+
+      // Moon arc
+      drawMoonArcTrack();
+
+      const moonProg = getMoonProgress();
+      const moonVis  = moonProg >= 0 && moonProg <= 1;
+      const moonOp   = moonVis ? Math.min(1, Math.min(moonProg, 1 - moonProg) * 14) : 0;
+      const phase    = getMoonPhase(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+      document.getElementById('moon-phase-name').textContent = phase.name;
+
+      if (moonVis) {
+        drawMoonTrail(moonProg);
+        const pt = moonArcPoint(moonProg);
+        drawMoonDisc(pt.x, pt.y, Math.max(14, H * 0.28), phase, Math.max(0.15, moonOp));
+      }
+    }
+    function onResize() {
+      resizeSkyCanvas();
+      resizeBotCanvas();
+      drawSilk();
+    }
+
+    window.addEventListener('resize', onResize);
+
+    resizeSkyCanvas();
+    resizeBotCanvas();
+    drawSilk();
+
+    function tick() {
+      drawSky();
+      updateSunArc();
+      drawBotCanvas();
+      requestAnimationFrame(tick);
+    }
+
+    tick();
+  </script>
+</body>
+</html>
