@@ -2,7 +2,7 @@
 My own personal calendar that has integrated weathering system and time. Additional features include showing moon phases and plant scheduling for plant chores
 
 COPYRIGHT NOTICE & LEGAL TERMS
-© 2026 Athena. All Rights Reserved.
+© 2026 HekaBytes. All Rights Reserved.
 PROPRIETARY SOFTWARE NOTICE
 All source code, documentation, algorithms, designs, interfaces, and associated materials contained in this repository (collectively, "the Software") are the exclusive intellectual property of Athena and are protected under United States copyright law (Title 17 U.S.C.) and international copyright treaties.
 STRICT LICENSE TERMS
